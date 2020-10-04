@@ -1,0 +1,29 @@
+---
+title: "Assignment 4 - web scraping timeplan BED-2056"
+author: "Herman Jakob Haugaa"
+date: "Sist endret `r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+---
+
+```{R packages}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(rvest)
+```
+
+```{R timeplanlink}
+Bed2056timeplan <- read_html("http://timeplan.uit.no/emne_timeplan.php?sem=20h&module%5B%5D=BED-2056-1&View=list")
+scraped <- Sys.time()
+Bed2056timeplan
+str(Bed2056timeplan)
+```
+
+```{R}
+timeplan <- html_table(html_nodes(Bed2056timeplan, "div table"))
+timeplan <- data.frame(matrix(unlist(timeplan), nrow=14, byrow=T))
+
+names(timeplan) <- c("Dato", "Dag&dato", "Tid", "Tidspunkt", "Rom", "Rom = zoom", "Emnekode", "Emnekode", "Beskrivelse", "Beskrivelse", "Lærer", "Navn på lærer" )
+```
+
+
+

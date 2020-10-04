@@ -1,0 +1,63 @@
+---
+title: "Assignment 3 - web scraping DataCamp"
+author: "Herman Jakob Haugaa"
+date: "Sist endret `r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(rvest)
+library(tidyverse)
+library(gtools)
+# Required for Accessing API's (HTTP or HTTPS URL's from Web)
+library(httr)
+# Convert json/text in lists to data frame
+library(rlist)
+# Additional functions to convert json/text to data frame
+library(jsonlite)
+# Manipulate data
+library(dplyr)
+```
+
+
+## Making the url for the r courses at datacamp scrapable
+```{R}
+rdatacamp <- read_html("https://www.datacamp.com/courses/tech:r") #Reading the html for all r courses
+rdatacamp
+str(rdatacamp)
+
+```
+
+```{R}
+df <- rdatacamp %>% 
+ html_nodes('h4') %>% html_text()
+
+df <- data.frame(df)
+df
+```
+
+```{R}
+pythondatacamp <- read_html("https://datacamp.com/courses/tech:python")
+pythondatacamp
+str(pythondatacamp)
+```
+
+```{R}
+pframe <- pythondatacamp %>% 
+ html_nodes('h4') %>% html_text()
+
+pframe <- data.frame(pframe)
+pframe
+
+colnames(df) <- c("tech")
+colnames(pframe) <- c("tech")
+language <- ("R")
+df <- cbind(df, language)
+language <- ("Python")
+pframe <- cbind(pframe, language)
+```
+
+```{R}
+rp <- bind_rows(df, pframe)
+```
