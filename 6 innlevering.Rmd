@@ -1,0 +1,101 @@
+---
+title: "Assignment 6"
+author: "Herman Jakob Haugaa"
+date: "Sist endret `r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+library(rvest)
+library(tidyverse)
+library(purrr)
+library(magrittr)
+library(httr)
+library(lubridate)
+```
+
+```{R}
+#loading the link for 2019  
+url2019 <- "https://w2.brreg.no/kunngjoring/kombisok.jsp?datoFra=01.01.2019&datoTil=31.12.2019&id_region=0&id_niva1=51&id_niva2=56&id_bransje1=0"
+scraped <- Sys.time()
+year2019 <- read_html("https://w2.brreg.no/kunngjoring/kombisok.jsp?datoFra=01.01.2019&datoTil=31.12.2019&id_region=0&id_niva1=51&id_niva2=56&id_bransje1=0")
+
+#Making dataframe for 2019
+df1 <- url2019 %>%
+  read_html() %>% html_nodes( xpath='//table') %>% html_nodes('table') %>% html_table()
+
+
+#Filtering and making the dataframe for 2019
+konkurs_2019 <- df1[[1]] %>% select(X2, X4, X6, X8, X9) %>%
+  rename("firm"=X2, "organisasjonnr"=X4, "date"=X6, "type"=X8, "region"=X9) %>%
+  mutate(region=ifelse(grepl("[^date][A-Za-z]", date), date, NA)) %>%
+  fill(region) %>%
+  filter(organisasjonnr != region, date != "") %>%
+  slice(-c(4615:4640)) %>% #remowing the rows with foreign firms
+  filter(type == "Konkursåpning") %>%
+  filter(nchar(organisasjonnr) >= 9 )  
+```
+
+```{R}
+#Loading the link for 2020
+url2020 <- "https://w2.brreg.no/kunngjoring/kombisok.jsp?datoFra=01.01.2020&datoTil=31.12.2020&id_region=0&id_niva1=51&id_niva2=56&id_bransje1=0"
+scraped <- Sys.time()
+year2020 <- read_html("https://w2.brreg.no/kunngjoring/kombisok.jsp?datoFra=01.01.2020&datoTil=31.12.2020&id_region=0&id_niva1=51&id_niva2=56&id_bransje1=0")
+
+#Making dataframe for 2020
+df2 <- url2020 %>%
+  read_html() %>%
+  html_nodes( xpath='//table') %>% html_nodes('table') %>% html_table()
+
+#Filtering and making the dataframe for 2020
+konkurs_2020 <- df2[[1]] %>% select(X2, X4, X6, X8, X9) %>%
+  rename("firm"=X2, "organisasjonnr"=X4, "date"=X6, "type"=X8, "region"=X9) %>%
+  mutate(region=ifelse(grepl("[^date][A-Za-z]", date), date, NA)) %>%
+  fill(region) %>%
+  filter(organisasjonnr != region, date != "") %>%
+  slice(-c(4615:4640)) %>% #remowing the rows with foreign firms
+  filter(type == "Konkursåpning") %>%
+  filter(nchar(organisasjonnr) >= 9 )
+```
+
+```{R}
+#Combining 2019 og 2020 to make one single dataframe
+dframe <- bind_rows(konkurs_2019, konkurs_2020)
+
+#Spliting up the date variabel to make two columns, one with the year and one with the month
+dframe$year <- year(dmy(dframe$date))
+dframe$month <- month(dmy(dframe$date)) 
+dframe
+
+
+#Removing the coliumn with the full date
+dframe <- subset(dframe, select = -c(date))
+
+#Improwing the structure of the dataframe
+dframe <- arrange(dframe, month, year) %>%
+  group_by(region)
+
+#Finding the amount of bankrupt firms per month per region
+dframe <- dframe %>%
+  group_by(region, month, year) %>%
+  count(type) 
+
+#Making the  year variable to a factor in order to make the graf
+dframe$year <- as.factor(dframe$year)
+```
+
+```{R}
+plot_konkurs <- dframe %>%
+  ggplot(aes(x=month, y=n, group = year)) +  
+  geom_line(aes(color=year)) + 
+  facet_wrap(~region) +
+  scale_x_continuous(breaks=c(1:12)) +
+  ylab(expression("Bankrupt firms")) +
+  xlab("Month") +
+  ggtitle("Monthly bankrupt firms per region in Norway 2019-2020") +
+  theme_linedraw()
+plot_konkurs
+```
