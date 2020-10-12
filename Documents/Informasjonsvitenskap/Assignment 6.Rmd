@@ -1,0 +1,105 @@
+---
+title: "Assignment 6"
+author: "Herman Jakob Haugaa"
+date: "6 10 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(rvest)
+library(tidyverse)
+library(purrr)
+library(magrittr)
+library(httr)
+library(lubridate)
+```
+
+```{R}
+
+#laster inn link for 2019  
+url2019 <- "https://w2.brreg.no/kunngjoring/kombisok.jsp?datoFra=01.01.2019&datoTil=31.12.2019&id_region=0&id_niva1=51&id_niva2=56&id_bransje1=0"
+scraped <- Sys.time()
+ar2019 <- read_html("https://w2.brreg.no/kunngjoring/kombisok.jsp?datoFra=01.01.2019&datoTil=31.12.2019&id_region=0&id_niva1=51&id_niva2=56&id_bransje1=0")
+
+#Lager dataframe for 2019
+df1 <- url2019 %>%
+  read_html() %>% html_nodes( xpath='//table') %>% html_nodes('table') %>% html_table()
+
+
+#Filter og fiksing av tabell for 2019
+konkursapning_2019 <- df1[[1]] %>% select(X2, X4, X6, X8, X9) %>%
+  rename("firma"=X2, "organisasjonsnr"=X4, "dato"=X6, "kunngjøringstype"=X8, "fylke"=X9) %>%
+  mutate(fylke=ifelse(grepl("[^Dato][A-Za-z]", dato), dato, NA)) %>%
+  fill(fylke) %>%
+  filter(organisasjonsnr != fylke, dato != "") %>%
+  slice(-c(4615:4640)) %>% #fjerner radene med utenlandske bedrifter
+  filter(kunngjoringstype == "Konkursåpning") %>%
+  filter(nchar(organisasjonsnr) >= 9 ) 
+```
+
+```{R}
+#Laster inn link for 2020
+url2020 <- "https://w2.brreg.no/kunngjoring/kombisok.jsp?datoFra=01.01.2020&datoTil=31.12.2020&id_region=0&id_niva1=51&id_niva2=56&id_bransje1=0"
+scraped <- Sys.time()
+ar2020 <- read_html("https://w2.brreg.no/kunngjoring/kombisok.jsp?datoFra=01.01.2020&datoTil=31.12.2020&id_region=0&id_niva1=51&id_niva2=56&id_bransje1=0")
+
+#Lager dataframe for 2020
+df2 <- url2020 %>%
+  read_html() %>%
+  html_nodes( xpath='//table') %>% html_nodes('table') %>% html_table()
+
+#Filter og fiksing av tabell for 2020
+konkursapning_2020 <- df2[[1]] %>% select(X2, X4, X6, X8, X9) %>%
+  rename("firma"=X2, "organisasjonsnr"=X4, "dato"=X6, "kunngjøringstype"=X8, "fylke"=X9) %>%
+  mutate(fylke=ifelse(grepl("[^Dato][A-Za-z]", dato), dato, NA)) %>%
+  fill(fylke) %>%
+  filter(organisasjonsnr != fylke, dato != "") %>%
+  slice(-c(3136:3156)) %>% #fjerner radene med utenlandske bedrifter
+  filter(kunngjoringstype == "Konkursåpning") %>%
+  filter(nchar(organisasjonsnr) >= 9) 
+  
+```
+
+```{R}
+#Kombinerer 2019 og 2020 for å få et datasett
+dframe <- bind_rows(konkursapning_2019, konkursapning_2020)
+
+#Omgjøring av datovariabel slik at det blir to kolonner, en med ar og en med maned
+dframe$year <- year(dmy(dframe$dato))
+dframe$month <- month(dmy(dframe$dato)) 
+dframe
+
+#Endrer navn på year og month kolonnene
+dframe <- dframe %>% rename("år"=year, "måned"=month)
+
+#Fjerner kolonnen med dato 
+dframe <- subset(dframe, select = -c(dato))
+
+#Forbedrer oppsettet på datasettet
+dframe <- arrange(dframe, maned, ar) %>%
+  group_by(fylke)
+
+#Finner antall konkurser per måned per fylke
+dframe <- dframe %>%
+  group_by(fylke, maned, ar) %>%
+  count(kunngjoringstype) 
+
+#Gjør om år til en faktor for å få til å lage graf
+dframe$ar <- as.factor(dframe$ar)
+```
+
+```{R}
+#lager plot  
+plot_konkurs <- dframe %>%
+  ggplot(aes(x=maned, y=n, group = ar)) +  
+  geom_line(aes(color=ar)) + 
+  facet_wrap(~fylke)+
+  scale_x_continuous(breaks=c(1:12))
+  ylab(expression("Antall konkurser")) +
+  xlab("Month") +
+  labs(title = "Månedlige konkurser per fylke i Norge 2019-2020") +
+  theme_linedraw()
+plot_konkurs
+```
