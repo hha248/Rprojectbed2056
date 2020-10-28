@@ -1,0 +1,146 @@
+<!--- I have collaborated with Alf Henrik Heggelund, Fredrik Sverre Nilssen and Andreas Reiten Skundberg to find codes-->
+
+---
+title: "Assignment 7 - birthdata from USA"
+author: "Herman Jakob Haugaa"
+date: "Sist endret `r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+df_print: paged
+---
+
+<center>
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+![American born baby](/Users/Herman/Documents/american baby.jpg) 
+
+```{R}
+#Loading the required packages for the code
+library(plyr)
+library(dplyr)
+library(readr)
+library(tidyverse)
+library(ggthemes)
+```
+
+```{R}
+#setting the working directory to the correct folder
+getwd()
+setwd("C:/Users/Herman/Documents/Informasjonsvitenskap/Zip")
+dir()
+```
+
+```{R, eval = FALSE}
+#reading the zip files and getting the correct information
+zip2017 <-
+  read_fwf("Nat2017PublicUS.c20180516.r20180808.txt", fwf_positions(start = c(9,13, 23, 475, 504),
+                                                                    end = c(12,14,23,475, 507),
+                                                                    col_names = c("year","month","weekday", "sex", "weight")))
+  
+
+
+zip2018 <-
+  read_fwf("Nat2018PublicUS.c20190509.r20190717.txt", fwf_positions(start = c(9,13, 23, 475, 504),
+                                                                    end = c(12,14,23,475, 507),
+                                                                    col_names = c("year","month","weekday", "sex", "weight")))
+  
+  
+
+zip2019 <-
+  read_fwf("Nat2019PublicUS.c20200506.r20200915.txt", fwf_positions(start = c(9,13, 23, 475, 504),
+                                                                    end = c(12,14,23,475, 507),
+                                                                    col_names = c("year","month","weekday", "sex", "weight")))
+
+write.csv(zip2017,'zip2017.csv')
+write.csv(zip2018, 'zip2018.csv')
+write.csv(zip2019, 'zip2019.csv')
+```
+
+```{R}
+
+csv2017 <-
+  read_csv("zip2017.csv")
+
+csv2018 <-
+  read_csv("zip2018.csv")
+
+csv2019 <-
+  read_csv("zip2019.csv")
+
+```
+
+```{R}
+#combining the datasets
+dframe <- bind_rows(csv2017,csv2018,csv2019)
+str(dframe)
+
+#fixing the structure of the dataset
+dframe$month <- as.numeric(dframe$month)
+dframe$weight <- as.numeric(dframe$weight)
+str(dframe)
+```
+
+```{R}
+#making count for total number of boys and girls
+dframe1 <- dframe %>% 
+  group_by(year, sex) %>%
+  count(sex)
+str(dframe1)
+
+#making plot for number of boys/girls per yer
+gendergraph <-ggplot(data=dframe1, aes(x=sex, y=n, fill=sex)) +
+  geom_bar(stat="identity")+
+  ggtitle("Number of newborn boys and girls") +
+  labs(x="year", y="frequency") +
+  theme_economist() +
+  facet_grid(~year) #making the graph for each year
+gendergraph
+```
+
+```{R}
+#Finding average birthweight in grams by gender
+weight <- ddply(dframe, .(sex, year), summarize,  avgweight=mean(weight))
+
+#Making graph for the average birthweight in grams by gender
+weightgraph <- ggplot(data=weight, aes(x=sex, y=avgweight, fill=sex)) +
+  geom_bar(stat="identity")+
+  ggtitle("Average weight of newborn boys and girls") +
+  labs(x="Sex", y="Average") +
+  theme_economist() +
+  facet_grid(~year) #making the graph for each year
+weightgraph
+```
+
+```{R}
+#Finding the proportion of boys to girls by day of birth
+weekday <- dframe %>% 
+  group_by(year,weekday, sex) %>%
+  count(sex)
+
+weekday$year <- as.character(weekday$year)
+
+#Making graph for the proportion of boys to girls by day of birth
+weekdaygraph <- ggplot(data=weekday, aes(x=sex, y=n, fill=year)) +
+  geom_bar(stat="identity")+
+  ggtitle("proportion of boys to girls by day of birth") +
+  labs(x="Sex", y="Count") +
+  theme_economist() +
+  facet_grid(~weekday) 
+weekdaygraph
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
